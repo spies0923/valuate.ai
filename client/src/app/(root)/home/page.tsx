@@ -1,15 +1,20 @@
 "use client";
 import Navbar from "../components/Navbar";
 import { useRouter } from "next/navigation";
-import { CiCirclePlus } from "react-icons/ci";
 import { useEffect, useState } from "react";
-import { FiCheckCircle, FiFileText, FiPlusCircle } from "react-icons/fi";
+import { FiPlusCircle } from "react-icons/fi";
 import { UploadButton } from "@/utils/uploadthing";
 import axios from "axios";
 import { bgColors, serverUrl } from "@/utils/utils";
 import { ToastContainer, toast } from "react-toastify";
-import { AiFillCheckCircle, AiFillSetting, AiOutlineFileDone } from "react-icons/ai";
+import { AiFillCheckCircle, AiOutlineFileDone } from "react-icons/ai";
 import Section from "../components/Animate";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, FileText, Loader2 } from "lucide-react";
 
 export default function Home() {
 
@@ -18,6 +23,7 @@ export default function Home() {
 	const [title, setTitle] = useState("");
 	const [questionPaperUrl, setQuestionPaperUrl] = useState("");
 	const [answerKeyUrl, setAnswerKeyUrl] = useState("");
+	const [dialogOpen, setDialogOpen] = useState(false);
 
 	const router = useRouter();
 
@@ -66,13 +72,17 @@ export default function Home() {
 				const message = response.data?.message || "Valuator created successfully!";
 				toast.success(message);
 				getValuators();
-				(document.getElementById("new_valuation_modal") as any).close();
+				setDialogOpen(false);
+				// Reset form
+				setTitle("");
+				setQuestionPaperUrl("");
+				setAnswerKeyUrl("");
 			})
 			.catch((error) => {
 				setCreatingValuator(false);
 				const message = error.response?.data?.message || "Error creating valuator!";
 				toast.error(message);
-				(document.getElementById("new_valuation_modal") as any).close();
+				setDialogOpen(false);
 			});
 	}
 
@@ -86,106 +96,124 @@ export default function Home() {
 			<main className="flex flex-col items-center w-full h-full">
 				<div className="w-full h-full p-5 px-10">
 					<p className="text-2xl my-4 mb-7 font-semibold">My Exam Valuators ({valuators.length})</p>
-					<div className="flex flex-wrap w-full">
-						{/* <div
-							onClick={() => (document.getElementById("new_valuation_modal") as any).showModal()}
-							className="hover:shadow-2xl duration-100 cursor-pointer border-2 flex flex-col min-h-[400px] min-w-[350px] mb-10 mr-10 rounded-3xl shadow-lg overflow-hidden"
-						>
-							<div className="flex flex-col items-center justify-center w-full h-full">
-								<CiCirclePlus className="h-40 w-40 mb-2" />
-								<p className="font-semibold text-xl">New valuator</p>
-							</div>
-						</div> */}
-						<div onClick={() => (document.getElementById("new_valuation_modal") as any)?.showModal()} className="hover:shadow-2xl duration-100 cursor-pointer border-2 flex flex-col min-h-[400px] min-w-[350px] mb-10 mr-10 rounded-3xl shadow-lg overflow-hidden">
-							<div className="flex flex-col items-center justify-center w-full h-full">
-								<CiCirclePlus className="h-40 w-40 mb-2" />
-								<p className="font-semibold text-xl">New Valuator</p>
-							</div>
-						</div>
+					<div className="flex flex-wrap w-full gap-6">
+						<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+							<DialogTrigger asChild>
+								<Card className="hover:shadow-xl duration-200 cursor-pointer border-2 border-dashed flex flex-col min-h-[400px] min-w-[350px] items-center justify-center group">
+									<CardContent className="flex flex-col items-center justify-center p-6">
+										<Plus className="h-24 w-24 mb-4 text-muted-foreground group-hover:text-primary transition-colors" />
+										<p className="font-semibold text-xl text-muted-foreground group-hover:text-foreground transition-colors">New Valuator</p>
+									</CardContent>
+								</Card>
+							</DialogTrigger>
+							<DialogContent className="max-w-2xl">
+								<DialogHeader>
+									<DialogTitle className="flex items-center text-2xl">
+										<FiPlusCircle className="mr-2" /> Create new valuator
+									</DialogTitle>
+									<DialogDescription>
+										Create a new exam valuator by uploading the question paper and answer key.
+									</DialogDescription>
+								</DialogHeader>
+								<div className="space-y-6 py-4">
+									<div className="space-y-2">
+										<Label htmlFor="title">Exam title</Label>
+										<Input
+											id="title"
+											placeholder="Enter exam title"
+											value={title}
+											onChange={(e) => setTitle(e.target.value)}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label>Question Paper</Label>
+										<div className="flex items-center gap-2">
+											{questionPaperUrl ? (
+												<div className="flex items-center gap-2">
+													<AiFillCheckCircle className="text-2xl text-green-500" />
+													<p className="text-sm text-muted-foreground truncate max-w-md">{questionPaperUrl}</p>
+												</div>
+											) : (
+												<UploadButton
+													endpoint="media"
+													onClientUploadComplete={(res) => {
+														setQuestionPaperUrl(res![0].url);
+														toast.success("Question paper uploaded!");
+													}}
+													onUploadError={(error: Error) => {
+														toast.error(`Upload error: ${error.message}`);
+													}}
+												/>
+											)}
+										</div>
+									</div>
+									<div className="space-y-2">
+										<Label>Answer Key / Criteria</Label>
+										<div className="flex items-center gap-2">
+											{answerKeyUrl ? (
+												<div className="flex items-center gap-2">
+													<AiFillCheckCircle className="text-2xl text-green-500" />
+													<p className="text-sm text-muted-foreground truncate max-w-md">{answerKeyUrl}</p>
+												</div>
+											) : (
+												<UploadButton
+													endpoint="media"
+													onClientUploadComplete={(res) => {
+														setAnswerKeyUrl(res![0].url);
+														toast.success("Answer key uploaded!");
+													}}
+													onUploadError={(error: Error) => {
+														toast.error(`Upload error: ${error.message}`);
+													}}
+												/>
+											)}
+										</div>
+									</div>
+								</div>
+								<DialogFooter>
+									<Button
+										className="w-full"
+										disabled={!title || !questionPaperUrl || !answerKeyUrl || creatingValuator}
+										onClick={createValuator}
+									>
+										{creatingValuator ? (
+											<>
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+												Creating...
+											</>
+										) : (
+											"Create Valuator"
+										)}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
 						{
 							valuators?.map((item: any, index: number) => {
-								return <Section key={index} translate="translateY(10px)" duration={((index * 0.075) + 0.5).toString() + "s"}><div onClick={() => router.push(`/valuate/${item._id}`)} className="hover:shadow-2xl duration-100 cursor-pointer border-2 flex flex-col h-full w-full mb-10 mr-10 rounded-3xl shadow-lg overflow-hidden">
-									<div style={{ background: `linear-gradient(45deg, ${bgColors[item?.title.toString().toLowerCase()[0]][0]}, ${bgColors[item?.title.toString().toLowerCase()[0]][1]})` }} className={"flex items-center justify-center w-full h-full opacity-50"}>
-										<AiOutlineFileDone style={{ color: bgColors[item?.title.toString().toLowerCase()[0]][1] }} className={"h-40 w-40 mb-2"} />
-									</div>
-									<div className="p-5 h-auto">
-										<p className="font-semibold text-lg">{item?.title}</p>
-										<p className="text-gray-500">{item?.valuations} valuations</p>
-									</div>
-								</div></Section>
-
-								// return <div
-								// 	key={index}
-								// 	onClick={() => router.push(`/valuate/${item._id}`)}
-								// 	className="hover:shadow-2xl duration-100 cursor-pointer border-2 flex flex-col min-h-[400px] min-w-[350px] mb-10 mr-10 rounded-3xl shadow-lg overflow-hidden"
-								// >
-								// 	<div className="flex flex-col items-center justify-center w-full h-full">
-								// 		<AiOutlineFileDone className="h-40 w-40 mb-2" />
-								// 		<p className="font-semibold text-xl">{item?.title}</p>
-								// 	</div>
-								// </div>
+								return (
+									<Section key={index} translate="translateY(10px)" duration={((index * 0.075) + 0.5).toString() + "s"}>
+										<Card
+											onClick={() => router.push(`/valuate/${item._id}`)}
+											className="hover:shadow-xl duration-200 cursor-pointer border-2 flex flex-col min-h-[400px] min-w-[350px] overflow-hidden group"
+										>
+											<div
+												style={{ background: `linear-gradient(45deg, ${bgColors[item?.title.toString().toLowerCase()[0]][0]}, ${bgColors[item?.title.toString().toLowerCase()[0]][1]})` }}
+												className="flex items-center justify-center w-full h-64 opacity-50 group-hover:opacity-60 transition-opacity"
+											>
+												<FileText style={{ color: bgColors[item?.title.toString().toLowerCase()[0]][1] }} className="h-32 w-32" />
+											</div>
+											<CardHeader>
+												<CardTitle className="text-lg">{item?.title}</CardTitle>
+												<CardDescription>{item?.valuations} valuations</CardDescription>
+											</CardHeader>
+										</Card>
+									</Section>
+								);
 							})
 						}
 					</div>
 				</div>
 			</main>
-			{/* Modals */}
-			{/* New valuation modal */}
-			<dialog id="new_valuation_modal" className="modal">
-				<div className="modal-box max-w-2xl align-middle">
-					<h3 className="flex items-center font-bold text-2xl mb-5">
-						<FiPlusCircle className="mr-2" /> Create new valuator
-					</h3>
-					<p className="mb-5 font-semibold">Exam title</p>
-					<input type="text" placeholder="Exam Title" className="input input-bordered w-full" value={title} onChange={(e) => setTitle(e.target.value)} />
-					<div className="w-full flex flex-col">
-						<p className="mb-2 mt-7 font-semibold">Upload question paper</p>
-						<div className="flex">
-							{questionPaperUrl ? <AiFillCheckCircle className="text-2xl mr-2 text-green-500" /> : ""}
-							{questionPaperUrl ? questionPaperUrl : <UploadButton
-								endpoint="media"
-								onClientUploadComplete={(res) => {
-									// Do something with the response
-									console.log("Files: ", res![0].url);
-									setQuestionPaperUrl(res![0].url);
-								}}
-								onUploadError={(error: Error) => {
-									// Do something with the error.
-									alert(`ERROR! ${error.message}`);
-								}}
-							/>}
-						</div>
-					</div>
-					<div className="w-full flex flex-col">
-						<p className="mb-2 mt-7 font-semibold">Upload answer key / criteria</p>
-						<div className="flex">
-							{answerKeyUrl ? <AiFillCheckCircle className="text-2xl mr-2 text-green-500" /> : ""}
-							{answerKeyUrl ? answerKeyUrl : <UploadButton
-								endpoint="media"
-								onClientUploadComplete={(res) => {
-									// Do something with the response
-									console.log("Files: ", res![0].url);
-									setAnswerKeyUrl(res![0].url);
-								}}
-								onUploadError={(error: Error) => {
-									// Do something with the error.
-									alert(`ERROR! ${error.message}`);
-								}}
-							/>}
-						</div>
-					</div>
-					<button className={"mt-10 btn w-full btn-primary " + ((!title || !questionPaperUrl || !answerKeyUrl) ? "opacity-50" : "")} onClick={() => {
-						if (!title || !questionPaperUrl || !answerKeyUrl) return;
-						createValuator();
-					}}>
-						{creatingValuator ? <span className="loading loading-spinner loading-sm"></span> : "Create Valuator"}
-					</button>
-				</div>
-				<form method="dialog" className="modal-backdrop">
-					<button>close</button>
-				</form>
-			</dialog>
-			{/* New valuation modal end */}
 			<ToastContainer />
 		</div>
 	);
