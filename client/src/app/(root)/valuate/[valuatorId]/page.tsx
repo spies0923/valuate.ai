@@ -1,5 +1,5 @@
 "use client";
-import { UploadButton } from "@/utils/uploadthing";
+import FileUpload from "@/components/FileUpload";
 import Navbar from "../../components/Navbar";
 import { useEffect, useState } from "react";
 import { serverUrl } from "@/utils/utils";
@@ -124,16 +124,14 @@ export default function Page({ params: { valuatorId } }: Params) {
                 })
               }
             </div> : <div className="flex">
-              <UploadButton
-                endpoint="media"
-                onClientUploadComplete={(res) => {
-                  // Do something with the response
-                  console.log("Files: ", res);
-                  setAnswerSheets(res);
+              <FileUpload
+                maxFiles={10}
+                onUploadComplete={(files) => {
+                  console.log("Files: ", files);
+                  setAnswerSheets(files);
                 }}
                 onUploadError={(error: Error) => {
-                  // Do something with the error.
-                  alert(`ERROR! ${error.message}`);
+                  toast.error(`Upload error: ${error.message}`);
                 }}
               />
             </div>
