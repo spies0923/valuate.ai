@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import valuatorRouter from "./routes/valuators.js";
 import schoolsRouter from "./routes/schools.js";
+import authRouter from "./routes/auth.js";
 import healthRouter from "./routes/health.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
@@ -12,7 +13,7 @@ import logger, { requestLogger } from "./utils/logger.js";
 dotenv.config();
 
 // Validate required environment variables
-const requiredEnvVars = ["DB_URL", "OPENAI_API_KEY"];
+const requiredEnvVars = ["DB_URL", "OPENAI_API_KEY", "JWT_SECRET"];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -46,6 +47,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/health", healthRouter);
+app.use("/auth", authRouter);
 app.use("/valuators", valuatorRouter);
 app.use("/schools", schoolsRouter);
 

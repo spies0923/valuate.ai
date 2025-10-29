@@ -14,7 +14,8 @@ const GradeSchema = new mongoose.Schema(
             index: true
         },
         userId: {
-            type: String,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
             required: true,
             index: true
         },

@@ -2,19 +2,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, School } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { Check, School, LogOut, User, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 function Navbar() {
 	const router = useRouter();
+	const { user, logout } = useAuth();
 	const [premiumOpen, setPremiumOpen] = useState(false);
-
-	const handleLogout = () => {
-		localStorage.clear();
-		router.push("/");
-	};
 
 	return (
 		<div className="pb-[70px]">
@@ -31,6 +28,12 @@ function Navbar() {
 							<School className="h-4 w-4" />
 							Organizations
 						</Link>
+						{user?.role === "admin" && (
+							<Link href={"/admin"} className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+								<Shield className="h-4 w-4" />
+								Admin
+							</Link>
+						)}
 					</nav>
 				</div>
 				<div className="flex items-center gap-4">
@@ -68,7 +71,27 @@ function Navbar() {
 							</DialogFooter>
 						</DialogContent>
 					</Dialog>
-					<UserButton afterSignOutUrl="/" />
+					{user && (
+						<div className="flex items-center gap-3">
+							<div className="hidden md:flex flex-col items-end">
+								<div className="flex items-center gap-2">
+									<p className="text-sm font-medium">{user.name}</p>
+									{user.role === "admin" && (
+										<Badge variant="default" className="text-xs">Admin</Badge>
+									)}
+								</div>
+								<p className="text-xs text-muted-foreground">{user.email}</p>
+							</div>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={logout}
+								title="Logout"
+							>
+								<LogOut className="h-4 w-4" />
+							</Button>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

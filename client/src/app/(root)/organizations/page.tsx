@@ -1,6 +1,6 @@
 "use client";
 import Navbar from "../components/Navbar";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { serverUrl } from "@/utils/utils";
@@ -46,7 +46,7 @@ interface Subject {
 }
 
 export default function Organizations() {
-    const { user } = useUser();
+    const { user } = useAuth();
     const [schools, setSchools] = useState<School[]>([]);
     const [grades, setGrades] = useState<Grade[]>([]);
     const [classes, setClasses] = useState<Class[]>([]);
@@ -78,14 +78,14 @@ export default function Organizations() {
     const [submitting, setSubmitting] = useState(false);
 
     const fetchOrganizations = async () => {
-        if (!user?.id) return;
+        if (!user?._id) return;
 
         setLoading(true);
         try {
             const [schoolsRes, gradesRes, classesRes, subjectsRes] = await Promise.all([
-                axios.get(`${serverUrl}/schools`, { params: { userId: user.id } }),
-                axios.get(`${serverUrl}/schools/hierarchy`, { params: { userId: user.id } })
-                    .then(() => axios.get(`${serverUrl}/schools`, { params: { userId: user.id } }))
+                axios.get(`${serverUrl}/schools`, { params: { userId: user._id } }),
+                axios.get(`${serverUrl}/schools/hierarchy`, { params: { userId: user._id } })
+                    .then(() => axios.get(`${serverUrl}/schools`, { params: { userId: user._id } }))
                     .catch(() => ({ data: { data: [] } })),
                 Promise.resolve({ data: { data: [] } }),
                 Promise.resolve({ data: { data: [] } })
@@ -101,10 +101,10 @@ export default function Organizations() {
     };
 
     const fetchGradesForSchool = async (schoolId: string) => {
-        if (!user?.id) return;
+        if (!user?._id) return;
         try {
             const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades`, {
-                params: { userId: user.id }
+                params: { userId: user._id }
             });
             setGrades(res.data.data || []);
         } catch (error: any) {
@@ -113,10 +113,10 @@ export default function Organizations() {
     };
 
     const fetchClassesForGrade = async (schoolId: string, gradeId: string) => {
-        if (!user?.id) return;
+        if (!user?._id) return;
         try {
             const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes`, {
-                params: { userId: user.id }
+                params: { userId: user._id }
             });
             setClasses(res.data.data || []);
         } catch (error: any) {
@@ -125,10 +125,10 @@ export default function Organizations() {
     };
 
     const fetchSubjectsForClass = async (schoolId: string, gradeId: string, classId: string) => {
-        if (!user?.id) return;
+        if (!user?._id) return;
         try {
             const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes/${classId}/subjects`, {
-                params: { userId: user.id }
+                params: { userId: user._id }
             });
             setSubjects(res.data.data || []);
         } catch (error: any) {
@@ -137,14 +137,14 @@ export default function Organizations() {
     };
 
     const createSchool = async () => {
-        if (!user?.id || !schoolName.trim()) return;
+        if (!user?._id || !schoolName.trim()) return;
 
         setSubmitting(true);
         try {
             await axios.post(`${serverUrl}/schools`, {
                 name: schoolName,
                 description: schoolDesc,
-                userId: user.id
+                userId: user._id
             });
             toast.success("School created successfully!");
             setSchoolDialogOpen(false);
@@ -159,14 +159,14 @@ export default function Organizations() {
     };
 
     const createGrade = async () => {
-        if (!user?.id || !gradeName.trim() || !gradeSchool) return;
+        if (!user?._id || !gradeName.trim() || !gradeSchool) return;
 
         setSubmitting(true);
         try {
             await axios.post(`${serverUrl}/schools/${gradeSchool}/grades`, {
                 name: gradeName,
                 description: gradeDesc,
-                userId: user.id
+                userId: user._id
             });
             toast.success("Grade created successfully!");
             setGradeDialogOpen(false);
@@ -182,14 +182,14 @@ export default function Organizations() {
     };
 
     const createClass = async () => {
-        if (!user?.id || !className.trim() || !classSchool || !classGrade) return;
+        if (!user?._id || !className.trim() || !classSchool || !classGrade) return;
 
         setSubmitting(true);
         try {
             await axios.post(`${serverUrl}/schools/${classSchool}/grades/${classGrade}/classes`, {
                 name: className,
                 description: classDesc,
-                userId: user.id
+                userId: user._id
             });
             toast.success("Class created successfully!");
             setClassDialogOpen(false);
@@ -206,14 +206,14 @@ export default function Organizations() {
     };
 
     const createSubject = async () => {
-        if (!user?.id || !subjectName.trim() || !subjectSchool || !subjectGrade || !subjectClass) return;
+        if (!user?._id || !subjectName.trim() || !subjectSchool || !subjectGrade || !subjectClass) return;
 
         setSubmitting(true);
         try {
             await axios.post(`${serverUrl}/schools/${subjectSchool}/grades/${subjectGrade}/classes/${subjectClass}/subjects`, {
                 name: subjectName,
                 description: subjectDesc,
-                userId: user.id
+                userId: user._id
             });
             toast.success("Subject created successfully!");
             setSubjectDialogOpen(false);
@@ -231,11 +231,11 @@ export default function Organizations() {
     };
 
     const deleteSchool = async (schoolId: string) => {
-        if (!user?.id || !confirm("Are you sure? This will delete all associated grades, classes, and subjects.")) return;
+        if (!user?._id || !confirm("Are you sure? This will delete all associated grades, classes, and subjects.")) return;
 
         try {
             await axios.delete(`${serverUrl}/schools/${schoolId}`, {
-                params: { userId: user.id }
+                params: { userId: user._id }
             });
             toast.success("School deleted successfully!");
             fetchOrganizations();
@@ -245,10 +245,10 @@ export default function Organizations() {
     };
 
     useEffect(() => {
-        if (user?.id) {
+        if (user?._id) {
             fetchOrganizations();
         }
-    }, [user?.id]);
+    }, [user?._id]);
 
     // Update grade list when school selection changes
     useEffect(() => {
