@@ -34,10 +34,13 @@ export default function Home() {
 
 		axios(config)
 			.then((response) => {
-				setValuators(response.data);
+				// Handle both old and new response formats
+				const data = response.data?.data || response.data;
+				setValuators(Array.isArray(data) ? data : []);
 			})
 			.catch((error) => {
-				toast.error("Failed to fetch valuators");
+				const message = error.response?.data?.message || "Failed to fetch valuators";
+				toast.error(message);
 			});
 	}
 
@@ -60,14 +63,16 @@ export default function Home() {
 		axios(config)
 			.then((response) => {
 				setCreatingValuator(false);
-				toast.success("Valuator created successfully!");
+				const message = response.data?.message || "Valuator created successfully!";
+				toast.success(message);
 				getValuators();
-				(document.getElementById("new_valuation_modal") as any).close()
+				(document.getElementById("new_valuation_modal") as any).close();
 			})
 			.catch((error) => {
 				setCreatingValuator(false);
-				toast.error("Error creating valuator!");
-				(document.getElementById("new_valuation_modal") as any).close()
+				const message = error.response?.data?.message || "Error creating valuator!";
+				toast.error(message);
+				(document.getElementById("new_valuation_modal") as any).close();
 			});
 	}
 

@@ -36,10 +36,13 @@ export default function Page({ params: { valuatorId } }: Params) {
 
     axios(config)
       .then((response) => {
-        setValuator(response.data);
+        // Handle both old and new response formats
+        const data = response.data?.data || response.data;
+        setValuator(data);
       })
       .catch((error) => {
-        toast.error("Failed to fetch valuators");
+        const message = error.response?.data?.message || "Failed to fetch valuator";
+        toast.error(message);
       });
   }
 
@@ -77,14 +80,22 @@ export default function Page({ params: { valuatorId } }: Params) {
       }
     };
 
-    var response = await axios(config);
-    console.log(response.data)
+    try {
+      var response = await axios(config);
+      // Handle both old and new response formats
+      const data = response.data?.data || response.data;
+      console.log(data);
 
-    setResults([...results, response.data]);
+      setResults([...results, data]);
 
-    localStorage.setItem("results", JSON.stringify(results));
+      localStorage.setItem("results", JSON.stringify(results));
 
-    return;
+      return;
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Failed to valuate answer sheet";
+      toast.error(message);
+      throw error;
+    }
   }
 
   useEffect(() => {

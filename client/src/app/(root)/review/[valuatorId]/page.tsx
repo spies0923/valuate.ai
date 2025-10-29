@@ -35,8 +35,13 @@ const ViewAnswerPage = ({ params: { valuatorId } }: Params) => {
 
 		axios(config)
 			.then((response) => {
-				setTotalMarks(response.data);
+				// Handle both old and new response formats
+				const data = response.data?.data || response.data;
+				setTotalMarks(data);
 			})
+			.catch((error) => {
+				console.error("Failed to fetch total marks:", error);
+			});
 	}
 
 	const getValuations = async () => {
@@ -54,10 +59,13 @@ const ViewAnswerPage = ({ params: { valuatorId } }: Params) => {
 
 		axios(config)
 			.then((response) => {
-				setValuations(response.data);
+				// Handle both old and new response formats
+				const data = response.data?.data || response.data;
+				setValuations(Array.isArray(data) ? data : []);
 			})
 			.catch((error) => {
-				toast.error("Failed to fetch valuators");
+				const message = error.response?.data?.message || "Failed to fetch valuations";
+				toast.error(message);
 			});
 	}
 
@@ -90,16 +98,18 @@ const ViewAnswerPage = ({ params: { valuatorId } }: Params) => {
 		axios(config)
 			.then((response) => {
 				setRevaluationRemarks("");
-				(document.getElementById("revaluation_modal") as any).close()
+				(document.getElementById("revaluation_modal") as any).close();
 				setRevaluating(false);
 				getValuations();
-				toast.success("Revaluation successful");
+				const message = response.data?.message || "Revaluation successful";
+				toast.success(message);
 			})
 			.catch((error) => {
 				setRevaluationRemarks("");
-				(document.getElementById("revaluation_modal") as any).close()
+				(document.getElementById("revaluation_modal") as any).close();
 				setRevaluating(false);
-				toast.error("Failed to revaluate");
+				const message = error.response?.data?.message || "Failed to revaluate";
+				toast.error(message);
 			});
 	}
 
