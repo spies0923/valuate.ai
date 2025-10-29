@@ -4,6 +4,9 @@ import Valuator from "../models/Valuator.js";
 import aiPrompt from "../utils/utils.js";
 import Valuation from "../models/Valuation.js";
 import { callOpenAIWithRetry, parseAIResponse } from "../utils/openai.js";
+import { aiLimiter, createLimiter, readLimiter } from "../middleware/rateLimiter.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -14,8 +17,35 @@ const asyncHandler = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-router.get("/", asyncHandler(async (req, res) => {
-    const valuators = await Valuator.find().lean();
+/**
+ * GET /valuators
+ * Get all valuators with pagination
+ * Query params: page (default 1), limit (default 20)
+ * Cached for 5 minutes
+ */
+router.get("/", readLimiter, cacheMiddleware(300), asyncHandler(async (req, res) => {
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Validate pagination params
+    if (page < 1 || limit < 1 || limit > 100) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid pagination parameters. Page must be >= 1, limit must be 1-100."
+        });
+    }
+
+    // Get total count for pagination metadata
+    const total = await Valuator.countDocuments();
+
+    // Get paginated valuators
+    const valuators = await Valuator.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
 
     // Get valuation counts in parallel to avoid N+1 queries
     const valuatorIds = valuators.map(v => v._id);
@@ -37,11 +67,23 @@ router.get("/", asyncHandler(async (req, res) => {
 
     res.json({
         success: true,
-        data: valuators.reverse()
+        data: valuators,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasMore: skip + valuators.length < total
+        }
     });
 }));
 
-router.post("/", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators
+ * Create a new valuator
+ * Rate limited to 20 per 15 minutes
+ */
+router.post("/", createLimiter, asyncHandler(async (req, res) => {
     const schema = joi.object({
         title: joi.string().required(),
         questionPaper: joi.string().uri().required(),
@@ -57,6 +99,10 @@ router.post("/", asyncHandler(async (req, res) => {
 
     const savedValuator = await newValuator.save();
 
+    // Invalidate valuators list cache
+    invalidateCache("/valuators*");
+    logger.info(`New valuator created: ${savedValuator._id}`);
+
     res.status(201).json({
         success: true,
         data: savedValuator,
@@ -64,7 +110,12 @@ router.post("/", asyncHandler(async (req, res) => {
     });
 }));
 
-router.post("/byId", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/byId
+ * Get valuator by ID
+ * Cached for 10 minutes (valuators rarely change)
+ */
+router.post("/byId", readLimiter, cacheMiddleware(600), asyncHandler(async (req, res) => {
     const schema = joi.object({
         id: joi.string().required(),
     });
@@ -86,7 +137,12 @@ router.post("/byId", asyncHandler(async (req, res) => {
 }));
 
 
-router.post("/valuate", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/valuate
+ * Grade an answer sheet using AI
+ * Rate limited to 10 per 15 minutes (expensive operation)
+ */
+router.post("/valuate", aiLimiter, asyncHandler(async (req, res) => {
     const schema = joi.object({
         valuatorId: joi.string().required(),
         answerSheet: joi.string().uri().required(),
@@ -101,6 +157,9 @@ router.post("/valuate", asyncHandler(async (req, res) => {
             message: "Valuator not found"
         });
     }
+
+    logger.info(`Starting valuation for valuator: ${data.valuatorId}`);
+    const startTime = Date.now();
 
     // Call OpenAI with retry logic
     const completion = await callOpenAIWithRetry([
@@ -159,6 +218,12 @@ router.post("/valuate", asyncHandler(async (req, res) => {
 
     await newValuation.save();
 
+    const duration = Date.now() - startTime;
+    logger.info(`Valuation completed in ${duration}ms for valuator: ${data.valuatorId}`);
+
+    // Invalidate valuations cache for this valuator
+    invalidateCache(`*valuations*${data.valuatorId}*`);
+
     res.json({
         success: true,
         data: respData,
@@ -166,7 +231,12 @@ router.post("/valuate", asyncHandler(async (req, res) => {
     });
 }));
 
-router.post("/valuations", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/valuations
+ * Get all valuations for a valuator
+ * Cached for 2 minutes (updates frequently)
+ */
+router.post("/valuations", readLimiter, cacheMiddleware(120), asyncHandler(async (req, res) => {
     const schema = joi.object({
         valuatorId: joi.string().required(),
     });
@@ -183,7 +253,9 @@ router.post("/valuations", asyncHandler(async (req, res) => {
         });
     }
 
-    const valuations = await Valuation.find({ valuatorId: data.valuatorId }).lean();
+    const valuations = await Valuation.find({ valuatorId: data.valuatorId })
+        .sort({ createdAt: -1 })
+        .lean();
 
     // Attach valuator data to all valuations (no N+1 query!)
     valuations.forEach(valuation => {
@@ -193,11 +265,16 @@ router.post("/valuations", asyncHandler(async (req, res) => {
 
     res.json({
         success: true,
-        data: valuations.reverse()
+        data: valuations
     });
 }));
 
-router.post("/total-marks", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/total-marks
+ * Get total marks for a valuation
+ * Cached for 5 minutes (rarely changes)
+ */
+router.post("/total-marks", readLimiter, cacheMiddleware(300), asyncHandler(async (req, res) => {
     const schema = joi.object({
         valuationId: joi.string().required(),
     });
@@ -232,7 +309,12 @@ router.post("/total-marks", asyncHandler(async (req, res) => {
     });
 }));
 
-router.post("/marksheet", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/marksheet
+ * Get marksheet for all students in a valuator
+ * Cached for 2 minutes
+ */
+router.post("/marksheet", readLimiter, cacheMiddleware(120), asyncHandler(async (req, res) => {
     const schema = joi.object({
         valuatorId: joi.string().required(),
     });
@@ -268,7 +350,12 @@ router.post("/marksheet", asyncHandler(async (req, res) => {
     });
 }));
 
-router.post("/revaluate", asyncHandler(async (req, res) => {
+/**
+ * POST /valuators/revaluate
+ * Re-grade an answer sheet with additional remarks
+ * Rate limited to 10 per 15 minutes (expensive AI operation)
+ */
+router.post("/revaluate", aiLimiter, asyncHandler(async (req, res) => {
     const schema = joi.object({
         valuationId: joi.string().required(),
         remarks: joi.string().allow("").default(""),
@@ -292,6 +379,9 @@ router.post("/revaluate", asyncHandler(async (req, res) => {
             message: "Valuator not found"
         });
     }
+
+    logger.info(`Starting revaluation for valuation: ${data.valuationId}`);
+    const startTime = Date.now();
 
     // Call OpenAI with retry logic
     const completion = await callOpenAIWithRetry([
@@ -345,6 +435,12 @@ router.post("/revaluate", asyncHandler(async (req, res) => {
     await Valuation.findByIdAndUpdate(data.valuationId, {
         data: respData,
     });
+
+    const duration = Date.now() - startTime;
+    logger.info(`Revaluation completed in ${duration}ms for valuation: ${data.valuationId}`);
+
+    // Invalidate caches for this valuation
+    invalidateCache(`*${valuation.valuatorId}*`);
 
     res.json({
         success: true,
