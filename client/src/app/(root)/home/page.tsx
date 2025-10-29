@@ -2,7 +2,7 @@
 import Navbar from "../components/Navbar";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/contexts/AuthContext";
 import { FiPlusCircle } from "react-icons/fi";
 import { UploadButton } from "@/utils/uploadthing";
 import axios from "axios";
@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, FileText, Loader2 } from "lucide-react";
 
 export default function Home() {
-	const { user } = useUser();
+	const { user } = useAuth();
 	const router = useRouter();
 
 	const [valuators, setValuators] = useState([]);
@@ -43,11 +43,11 @@ export default function Home() {
 	const [selectedSubject, setSelectedSubject] = useState("");
 
 	const getValuators = async () => {
-		if (!user?.id) return;
+		if (!user?._id) return;
 
 		const config = {
 			method: "GET",
-			url: `${serverUrl}/valuators?page=1&limit=100&userId=${user.id}`,
+			url: `${serverUrl}/valuators?page=1&limit=100&userId=${user._id}`,
 			headers: {
 				"Authorization": `Bearer ${localStorage.getItem("token")}`
 			},
@@ -66,10 +66,10 @@ export default function Home() {
 	}
 
 	const fetchOrganizations = async () => {
-		if (!user?.id) return;
+		if (!user?._id) return;
 
 		try {
-			const res = await axios.get(`${serverUrl}/schools`, { params: { userId: user.id } });
+			const res = await axios.get(`${serverUrl}/schools`, { params: { userId: user._id } });
 			setSchools(res.data.data || []);
 		} catch (error) {
 			console.error("Failed to fetch schools");
@@ -77,11 +77,11 @@ export default function Home() {
 	};
 
 	const fetchGradesForSchool = async (schoolId: string) => {
-		if (!user?.id || !schoolId) return;
+		if (!user?._id || !schoolId) return;
 
 		try {
 			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades`, {
-				params: { userId: user.id }
+				params: { userId: user._id }
 			});
 			setGrades(res.data.data || []);
 		} catch (error) {
@@ -90,11 +90,11 @@ export default function Home() {
 	};
 
 	const fetchClassesForGrade = async (schoolId: string, gradeId: string) => {
-		if (!user?.id || !schoolId || !gradeId) return;
+		if (!user?._id || !schoolId || !gradeId) return;
 
 		try {
 			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes`, {
-				params: { userId: user.id }
+				params: { userId: user._id }
 			});
 			setClasses(res.data.data || []);
 		} catch (error) {
@@ -103,11 +103,11 @@ export default function Home() {
 	};
 
 	const fetchSubjectsForClass = async (schoolId: string, gradeId: string, classId: string) => {
-		if (!user?.id || !schoolId || !gradeId || !classId) return;
+		if (!user?._id || !schoolId || !gradeId || !classId) return;
 
 		try {
 			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes/${classId}/subjects`, {
-				params: { userId: user.id }
+				params: { userId: user._id }
 			});
 			setSubjects(res.data.data || []);
 		} catch (error) {
@@ -116,7 +116,7 @@ export default function Home() {
 	};
 
 	const createValuator = async () => {
-		if (!user?.id) return;
+		if (!user?._id) return;
 
 		setCreatingValuator(true);
 		const config = {
@@ -130,7 +130,7 @@ export default function Home() {
 				title: title,
 				questionPaper: questionPaperUrl,
 				answerKey: answerKeyUrl,
-				userId: user.id,
+				userId: user._id,
 				schoolId: selectedSchool || null,
 				gradeId: selectedGrade || null,
 				classId: selectedClass || null,
@@ -163,16 +163,16 @@ export default function Home() {
 	}
 
 	useEffect(() => {
-		if (user?.id) {
+		if (user?._id) {
 			getValuators();
 		}
-	}, [user?.id]);
+	}, [user?._id]);
 
 	useEffect(() => {
-		if (dialogOpen && user?.id) {
+		if (dialogOpen && user?._id) {
 			fetchOrganizations();
 		}
-	}, [dialogOpen, user?.id]);
+	}, [dialogOpen, user?._id]);
 
 	useEffect(() => {
 		if (selectedSchool) {
