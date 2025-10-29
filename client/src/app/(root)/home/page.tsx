@@ -26,7 +26,7 @@ export default function Home() {
 	const getValuators = async () => {
 		const config = {
 			method: "GET",
-			url: `${serverUrl}/valuators`,
+			url: `${serverUrl}/valuators?page=1&limit=100`,
 			headers: {
 				"Authorization": `Bearer ${localStorage.getItem("token")}`
 			},
@@ -34,7 +34,7 @@ export default function Home() {
 
 		axios(config)
 			.then((response) => {
-				// Handle both old and new response formats
+				// Handle both old and new response formats (with pagination)
 				const data = response.data?.data || response.data;
 				setValuators(Array.isArray(data) ? data : []);
 			})

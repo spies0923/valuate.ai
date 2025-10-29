@@ -90,7 +90,9 @@ const callOpenAIWithRetry = async (messages, maxTokens = 2000) => {
 
     return await retryWithBackoff(async () => {
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-vision-preview",
+            // Using gpt-4o - the latest stable multimodal model
+            // Supports vision, faster, and more cost-effective than gpt-4-vision-preview
+            model: "gpt-4o",
             messages: messages,
             max_tokens: maxTokens,
         });
