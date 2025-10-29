@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MongoDB Database
   mongodb:
@@ -34,6 +32,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
+      SERVER_URL: ${SERVER_URL:-http://localhost:8080}
       DB_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/valuate?authSource=admin
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
@@ -42,6 +41,7 @@ services:
       - "${SERVER_PORT:-8080}:8080"
     volumes:
       - server_logs:/app/logs
+      - server_uploads:/app/uploads
     depends_on:
       mongodb:
         condition: service_healthy
@@ -64,10 +64,6 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:-http://localhost:8080}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-      UPLOADTHING_SECRET: ${UPLOADTHING_SECRET}
-      UPLOADTHING_APP_ID: ${UPLOADTHING_APP_ID}
     ports:
       - "${CLIENT_PORT:-3000}:3000"
     depends_on:
@@ -82,6 +78,8 @@ volumes:
   mongodb_config:
     driver: local
   server_logs:
+    driver: local
+  server_uploads:
     driver: local
 
 networks:
