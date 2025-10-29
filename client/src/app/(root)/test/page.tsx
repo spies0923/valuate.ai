@@ -1,18 +1,16 @@
 "use client";
-import { UploadButton } from "@/utils/uploadthing";
+import FileUpload from "@/components/FileUpload";
 
 export default function Home() {
 	return (
 		<main className="flex min-h-screen flex-col items-center justify-between p-24">
-			<UploadButton
-				endpoint="media"
-				onClientUploadComplete={(res) => {
-					// Do something with the response
-					console.log("Files: ", res);
+			<FileUpload
+				maxFiles={10}
+				onUploadComplete={(files) => {
+					console.log("Files: ", files);
 					alert("Upload Completed");
 				}}
 				onUploadError={(error: Error) => {
-					// Do something with the error.
 					alert(`ERROR! ${error.message}`);
 				}}
 			/>

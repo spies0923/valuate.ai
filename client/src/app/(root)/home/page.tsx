@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { FiPlusCircle } from "react-icons/fi";
-import { UploadButton } from "@/utils/uploadthing";
+import FileUpload from "@/components/FileUpload";
 import axios from "axios";
 import { bgColors, serverUrl } from "@/utils/utils";
 import { ToastContainer, toast } from "react-toastify";
@@ -327,10 +327,10 @@ export default function Home() {
 													<p className="text-sm text-muted-foreground truncate max-w-md">{questionPaperUrl}</p>
 												</div>
 											) : (
-												<UploadButton
-													endpoint="media"
-													onClientUploadComplete={(res) => {
-														setQuestionPaperUrl(res![0].url);
+												<FileUpload
+													maxFiles={1}
+													onUploadComplete={(files) => {
+														setQuestionPaperUrl(files[0].url);
 														toast.success("Question paper uploaded!");
 													}}
 													onUploadError={(error: Error) => {
@@ -349,10 +349,10 @@ export default function Home() {
 													<p className="text-sm text-muted-foreground truncate max-w-md">{answerKeyUrl}</p>
 												</div>
 											) : (
-												<UploadButton
-													endpoint="media"
-													onClientUploadComplete={(res) => {
-														setAnswerKeyUrl(res![0].url);
+												<FileUpload
+													maxFiles={1}
+													onUploadComplete={(files) => {
+														setAnswerKeyUrl(files[0].url);
 														toast.success("Answer key uploaded!");
 													}}
 													onUploadError={(error: Error) => {

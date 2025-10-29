@@ -2,13 +2,19 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import valuatorRouter from "./routes/valuators.js";
 import schoolsRouter from "./routes/schools.js";
 import authRouter from "./routes/auth.js";
 import healthRouter from "./routes/health.js";
+import uploadRouter from "./routes/upload.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
 import logger, { requestLogger } from "./utils/logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -36,6 +42,9 @@ app.use(requestLogger);
 // Rate limiting - apply to all routes
 app.use(generalLimiter);
 
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // Routes
 app.get("/", (req, res) => {
     res.json({
@@ -48,6 +57,7 @@ app.get("/", (req, res) => {
 
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
+app.use("/upload", uploadRouter);
 app.use("/valuators", valuatorRouter);
 app.use("/schools", schoolsRouter);
 
