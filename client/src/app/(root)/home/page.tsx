@@ -2,6 +2,7 @@
 import Navbar from "../components/Navbar";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import { FiPlusCircle } from "react-icons/fi";
 import { UploadButton } from "@/utils/uploadthing";
 import axios from "axios";
@@ -14,9 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, FileText, Loader2 } from "lucide-react";
 
 export default function Home() {
+	const { user } = useUser();
+	const router = useRouter();
 
 	const [valuators, setValuators] = useState([]);
 	const [valuation, setValuation] = useState([]);
@@ -24,15 +28,26 @@ export default function Home() {
 	const [questionPaperUrl, setQuestionPaperUrl] = useState("");
 	const [answerKeyUrl, setAnswerKeyUrl] = useState("");
 	const [dialogOpen, setDialogOpen] = useState(false);
-
-	const router = useRouter();
-
 	const [creatingValuator, setCreatingValuator] = useState(false);
 
+	// Organization state
+	const [schools, setSchools] = useState<any[]>([]);
+	const [grades, setGrades] = useState<any[]>([]);
+	const [classes, setClasses] = useState<any[]>([]);
+	const [subjects, setSubjects] = useState<any[]>([]);
+
+	// Selected organization for new valuator
+	const [selectedSchool, setSelectedSchool] = useState("");
+	const [selectedGrade, setSelectedGrade] = useState("");
+	const [selectedClass, setSelectedClass] = useState("");
+	const [selectedSubject, setSelectedSubject] = useState("");
+
 	const getValuators = async () => {
+		if (!user?.id) return;
+
 		const config = {
 			method: "GET",
-			url: `${serverUrl}/valuators?page=1&limit=100`,
+			url: `${serverUrl}/valuators?page=1&limit=100&userId=${user.id}`,
 			headers: {
 				"Authorization": `Bearer ${localStorage.getItem("token")}`
 			},
@@ -50,7 +65,59 @@ export default function Home() {
 			});
 	}
 
+	const fetchOrganizations = async () => {
+		if (!user?.id) return;
+
+		try {
+			const res = await axios.get(`${serverUrl}/schools`, { params: { userId: user.id } });
+			setSchools(res.data.data || []);
+		} catch (error) {
+			console.error("Failed to fetch schools");
+		}
+	};
+
+	const fetchGradesForSchool = async (schoolId: string) => {
+		if (!user?.id || !schoolId) return;
+
+		try {
+			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades`, {
+				params: { userId: user.id }
+			});
+			setGrades(res.data.data || []);
+		} catch (error) {
+			console.error("Failed to fetch grades");
+		}
+	};
+
+	const fetchClassesForGrade = async (schoolId: string, gradeId: string) => {
+		if (!user?.id || !schoolId || !gradeId) return;
+
+		try {
+			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes`, {
+				params: { userId: user.id }
+			});
+			setClasses(res.data.data || []);
+		} catch (error) {
+			console.error("Failed to fetch classes");
+		}
+	};
+
+	const fetchSubjectsForClass = async (schoolId: string, gradeId: string, classId: string) => {
+		if (!user?.id || !schoolId || !gradeId || !classId) return;
+
+		try {
+			const res = await axios.get(`${serverUrl}/schools/${schoolId}/grades/${gradeId}/classes/${classId}/subjects`, {
+				params: { userId: user.id }
+			});
+			setSubjects(res.data.data || []);
+		} catch (error) {
+			console.error("Failed to fetch subjects");
+		}
+	};
+
 	const createValuator = async () => {
+		if (!user?.id) return;
+
 		setCreatingValuator(true);
 		const config = {
 			method: "POST",
@@ -63,6 +130,11 @@ export default function Home() {
 				title: title,
 				questionPaper: questionPaperUrl,
 				answerKey: answerKeyUrl,
+				userId: user.id,
+				schoolId: selectedSchool || null,
+				gradeId: selectedGrade || null,
+				classId: selectedClass || null,
+				subjectId: selectedSubject || null,
 			}
 		};
 
@@ -77,6 +149,10 @@ export default function Home() {
 				setTitle("");
 				setQuestionPaperUrl("");
 				setAnswerKeyUrl("");
+				setSelectedSchool("");
+				setSelectedGrade("");
+				setSelectedClass("");
+				setSelectedSubject("");
 			})
 			.catch((error) => {
 				setCreatingValuator(false);
@@ -87,8 +163,46 @@ export default function Home() {
 	}
 
 	useEffect(() => {
-		getValuators();
-	}, [])
+		if (user?.id) {
+			getValuators();
+		}
+	}, [user?.id]);
+
+	useEffect(() => {
+		if (dialogOpen && user?.id) {
+			fetchOrganizations();
+		}
+	}, [dialogOpen, user?.id]);
+
+	useEffect(() => {
+		if (selectedSchool) {
+			fetchGradesForSchool(selectedSchool);
+			// Reset dependent selections
+			setSelectedGrade("");
+			setSelectedClass("");
+			setSelectedSubject("");
+			setClasses([]);
+			setSubjects([]);
+		}
+	}, [selectedSchool]);
+
+	useEffect(() => {
+		if (selectedSchool && selectedGrade) {
+			fetchClassesForGrade(selectedSchool, selectedGrade);
+			// Reset dependent selections
+			setSelectedClass("");
+			setSelectedSubject("");
+			setSubjects([]);
+		}
+	}, [selectedGrade]);
+
+	useEffect(() => {
+		if (selectedSchool && selectedGrade && selectedClass) {
+			fetchSubjectsForClass(selectedSchool, selectedGrade, selectedClass);
+			// Reset dependent selection
+			setSelectedSubject("");
+		}
+	}, [selectedClass]);
 
 	return (
 		<div>
@@ -125,6 +239,85 @@ export default function Home() {
 											onChange={(e) => setTitle(e.target.value)}
 										/>
 									</div>
+
+									{/* Organization Selectors */}
+									<div className="space-y-4 border-t pt-4">
+										<Label className="text-base">Organization (Optional)</Label>
+										<p className="text-sm text-muted-foreground">Associate this valuator with a school, grade, class, and subject for better organization.</p>
+
+										<div className="grid grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label>School</Label>
+												<Select value={selectedSchool} onValueChange={setSelectedSchool}>
+													<SelectTrigger>
+														<SelectValue placeholder="Select school (optional)" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="">None</SelectItem>
+														{schools.map((school) => (
+															<SelectItem key={school._id} value={school._id}>
+																{school.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+
+											<div className="space-y-2">
+												<Label>Grade</Label>
+												<Select value={selectedGrade} onValueChange={setSelectedGrade} disabled={!selectedSchool}>
+													<SelectTrigger>
+														<SelectValue placeholder={selectedSchool ? "Select grade (optional)" : "Select school first"} />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="">None</SelectItem>
+														{grades.map((grade) => (
+															<SelectItem key={grade._id} value={grade._id}>
+																{grade.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+
+											<div className="space-y-2">
+												<Label>Class</Label>
+												<Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedGrade}>
+													<SelectTrigger>
+														<SelectValue placeholder={selectedGrade ? "Select class (optional)" : "Select grade first"} />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="">None</SelectItem>
+														{classes.map((cls) => (
+															<SelectItem key={cls._id} value={cls._id}>
+																{cls.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+
+											<div className="space-y-2">
+												<Label>Subject</Label>
+												<Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={!selectedClass}>
+													<SelectTrigger>
+														<SelectValue placeholder={selectedClass ? "Select subject (optional)" : "Select class first"} />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="">None</SelectItem>
+														{subjects.map((subject) => (
+															<SelectItem key={subject._id} value={subject._id}>
+																{subject.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+										</div>
+									</div>
+
+									<Separator />
+
 									<div className="space-y-2">
 										<Label>Question Paper</Label>
 										<div className="flex items-center gap-2">

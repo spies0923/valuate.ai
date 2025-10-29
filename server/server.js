@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import valuatorRouter from "./routes/valuators.js";
+import schoolsRouter from "./routes/schools.js";
 import healthRouter from "./routes/health.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
@@ -46,6 +47,7 @@ app.get("/", (req, res) => {
 
 app.use("/health", healthRouter);
 app.use("/valuators", valuatorRouter);
+app.use("/schools", schoolsRouter);
 
 // Error handlers (must be last)
 app.use(notFoundHandler);

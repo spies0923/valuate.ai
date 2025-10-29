@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, School } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,9 +19,20 @@ function Navbar() {
 	return (
 		<div className="pb-[70px]">
 			<div className="z-50 fixed w-full backdrop-filter backdrop-blur-lg bg-background/80 border-b flex justify-between items-center px-6 py-4">
-				<Link href={"/home"} className="font-black text-3xl hover:opacity-80 transition-opacity">
-					valuate.ai
-				</Link>
+				<div className="flex items-center gap-8">
+					<Link href={"/home"} className="font-black text-3xl hover:opacity-80 transition-opacity">
+						valuate.ai
+					</Link>
+					<nav className="hidden md:flex items-center gap-6">
+						<Link href={"/home"} className="text-sm font-medium hover:text-primary transition-colors">
+							Home
+						</Link>
+						<Link href={"/organizations"} className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+							<School className="h-4 w-4" />
+							Organizations
+						</Link>
+					</nav>
+				</div>
 				<div className="flex items-center gap-4">
 					<Dialog open={premiumOpen} onOpenChange={setPremiumOpen}>
 						<DialogTrigger asChild>

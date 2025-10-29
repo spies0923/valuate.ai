@@ -19,8 +19,8 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 /**
  * GET /valuators
- * Get all valuators with pagination
- * Query params: page (default 1), limit (default 20)
+ * Get all valuators with pagination and filtering
+ * Query params: page (default 1), limit (default 20), userId, schoolId, gradeId, classId, subjectId
  * Cached for 5 minutes
  */
 router.get("/", readLimiter, cacheMiddleware(300), asyncHandler(async (req, res) => {
@@ -37,11 +37,19 @@ router.get("/", readLimiter, cacheMiddleware(300), asyncHandler(async (req, res)
         });
     }
 
+    // Build filter query for user isolation and organizational filtering
+    const filter = {};
+    if (req.query.userId) filter.userId = req.query.userId;
+    if (req.query.schoolId) filter.schoolId = req.query.schoolId;
+    if (req.query.gradeId) filter.gradeId = req.query.gradeId;
+    if (req.query.classId) filter.classId = req.query.classId;
+    if (req.query.subjectId) filter.subjectId = req.query.subjectId;
+
     // Get total count for pagination metadata
-    const total = await Valuator.countDocuments();
+    const total = await Valuator.countDocuments(filter);
 
     // Get paginated valuators
-    const valuators = await Valuator.find()
+    const valuators = await Valuator.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -80,7 +88,7 @@ router.get("/", readLimiter, cacheMiddleware(300), asyncHandler(async (req, res)
 
 /**
  * POST /valuators
- * Create a new valuator
+ * Create a new valuator with optional organizational structure
  * Rate limited to 20 per 15 minutes
  */
 router.post("/", createLimiter, asyncHandler(async (req, res) => {
@@ -88,6 +96,11 @@ router.post("/", createLimiter, asyncHandler(async (req, res) => {
         title: joi.string().required(),
         questionPaper: joi.string().uri().required(),
         answerKey: joi.string().uri().required(),
+        userId: joi.string().required(),
+        schoolId: joi.string().allow(null, "").default(null),
+        gradeId: joi.string().allow(null, "").default(null),
+        classId: joi.string().allow(null, "").default(null),
+        subjectId: joi.string().allow(null, "").default(null),
     });
 
     const data = await schema.validateAsync(req.body);
@@ -95,13 +108,19 @@ router.post("/", createLimiter, asyncHandler(async (req, res) => {
         title: data.title,
         questionPaper: data.questionPaper,
         answerKey: data.answerKey,
+        userId: data.userId,
+        schoolId: data.schoolId || null,
+        gradeId: data.gradeId || null,
+        classId: data.classId || null,
+        subjectId: data.subjectId || null,
     });
 
     const savedValuator = await newValuator.save();
 
-    // Invalidate valuators list cache
+    // Invalidate valuators and organizational caches
     invalidateCache("/valuators*");
-    logger.info(`New valuator created: ${savedValuator._id}`);
+    invalidateCache("/schools*");
+    logger.info(`New valuator created: ${savedValuator._id} by user: ${data.userId}`);
 
     res.status(201).json({
         success: true,
