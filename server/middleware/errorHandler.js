@@ -1,14 +1,17 @@
+import logger from "../utils/logger.js";
+
 /**
  * Global Error Handler Middleware
  * Centralizes error handling and provides consistent error responses
  */
 const errorHandler = (err, req, res, next) => {
     // Log error for debugging
-    console.error("Error occurred:", {
+    logger.error("Error occurred:", {
         message: err.message,
         stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
         url: req.originalUrl,
-        method: req.method
+        method: req.method,
+        error: err
     });
 
     // Handle Mongoose validation errors
