@@ -39,10 +39,13 @@ export default function MarkList({ params: { valuatorId } }: Params) {
 
 		axios(config)
 			.then((response) => {
-				setValuator(response.data);
+				// Handle both old and new response formats
+				const data = response.data?.data || response.data;
+				setValuator(data);
 			})
 			.catch((error) => {
-				toast.error("Failed to fetch valuators");
+				const message = error.response?.data?.message || "Failed to fetch valuator";
+				toast.error(message);
 			});
 	}
 
@@ -61,10 +64,13 @@ export default function MarkList({ params: { valuatorId } }: Params) {
 
 		axios(config)
 			.then((response) => {
-				setMarksheet(response.data);
+				// Handle both old and new response formats
+				const data = response.data?.data || response.data;
+				setMarksheet(Array.isArray(data) ? data : []);
 			})
 			.catch((error) => {
-				toast.error("Failed to fetch valuators");
+				const message = error.response?.data?.message || "Failed to fetch marksheet";
+				toast.error(message);
 			});
 	}
 

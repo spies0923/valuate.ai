@@ -4,7 +4,8 @@ const ValuationSchema = new mongoose.Schema(
     {
         valuatorId: {
             type: String,
-            required: true
+            required: true,
+            index: true  // Add index for faster queries
         },
         data: {
             type: Object,
@@ -19,6 +20,9 @@ const ValuationSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+// Create compound index for common query patterns
+ValuationSchema.index({ valuatorId: 1, createdAt: -1 });
 
 const Valuation = mongoose.model("Valuation", ValuationSchema);
 
